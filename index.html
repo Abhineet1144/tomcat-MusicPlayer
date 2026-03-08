@@ -17,7 +17,20 @@
             <div></div>
         </header>
         <main>
-
+            <div class="playlists-p">
+                <h1>
+                    Playlists
+                    <button onclick="createPlaylist()">+</button>
+                    <button onclick="shuffleQueue()">🔀</button>
+                </h1>
+                <div class="playlists">
+                    <div class="playlist">
+                        <span>Playlist 1</span>
+                    </div>
+                </div>
+            </div>
+            <div class="queue">
+            </div>
         </main>
         <section class="player">
             <div class="song-desc">
@@ -26,9 +39,9 @@
             </div>
             <div class="controls">
                 <button onclick="skip(-SKIP_AMOUNT)">⏪︎</button>
-                <button>⏮︎</button>
+                <button onclick="prevSong()">⏮︎</button>
                 <button id="play-pause" onclick="swapPlayStatusAndUpdate()">►</button>
-                <button>⏭</button>
+                <button onclick="nextSong()">⏭</button>
                 <button onclick="skip(SKIP_AMOUNT)">⏩︎</button>
                 <div class="time-seek">
                     <span id="curr-timestamp">0:00</span>
@@ -44,4 +57,5 @@
     </body>
     <script src="scripts/Player.js"></script>
     <script src="scripts/Search.js"></script>
+    <script src="scripts/PlayList.js"></script>
 </html>

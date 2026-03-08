@@ -34,20 +34,25 @@ function swapPlayStatusAndUpdate() {
     updatePlayStatus();
 }
 
-function playSong(songName) {
+function playSong(path) {
     if (song != null) {
         song.pause();
-        song.remove();
     }
-    song = new Audio(songName);
+    song = new Audio(path);
+    
+    song.addEventListener('ended', () => {
+        nextSong();
+    });
+
     song.addEventListener('loadedmetadata', function() {
         MAX_TIME.innerText = formatTime(song.duration);
         TIME_SEEK.max = song.duration; 
-        TIME_SEEK.value = 0;
         setVolume();
-
         playing = true;
         updatePlayStatus();
+        
+        const current = queue[currentIndex];
+        updateMediaSession(current.name, current.thumbnail);
     });
 }
 
@@ -121,3 +126,37 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("volume").value = localStorage.getItem("vol");
     setVolPercent();
 })
+
+function updateMediaSession(songName, imgPath) {
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: songName,
+            artist: "OurMusic Player",
+            artwork: [{ src: imgPath, sizes: '512x512', type: 'image/png' }]
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => { playing = true; updatePlayStatus(); });
+        navigator.mediaSession.setActionHandler('pause', () => { playing = false; updatePlayStatus(); });
+        
+        navigator.mediaSession.setActionHandler('previoustrack', prevSong);
+        navigator.mediaSession.setActionHandler('nexttrack', nextSong);
+        
+        navigator.mediaSession.setActionHandler('seekbackward', () => skip(-SKIP_AMOUNT));
+        navigator.mediaSession.setActionHandler('seekforward', () => skip(SKIP_AMOUNT));
+    }
+}
+
+function nextSong() {
+    if (queue.length === 0) return;
+    currentIndex++;
+    const next = queue[currentIndex];
+    queue.pop(queue.length);
+    play(next.name, next.thumbnail);
+}
+
+function prevSong() {
+    if (queue.length === 0) return;
+    currentIndex = (currentIndex - 1 + queue.length) % queue.length;
+    const prev = queue[currentIndex];
+    play(prev.name, prev.thumbnail);
+}

@@ -46,8 +46,13 @@ header {
         padding: 20px;
         top: 150%;
         border-radius: 6px;
+        max-height: 90vh;
+        overflow-y: auto;
+        flex-direction: column;
+        gap: 10px;
+        background-color: #111;
 
-        .song-desc {
+        .song-info {
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -62,12 +67,11 @@ header {
 }
 
 #search:focus  ~ .search-result {
-    display: block;
-    background-color: #111;
+    display: flex;
 }
 
 .search-result:hover {
-    display: block;
+    display: flex;
 }
 
 main {
@@ -86,7 +90,7 @@ main {
         display: flex;
         align-items: center;
         gap: 10px;
-        max-width: 20%;
+        width: 20%;
     }
 
     .controls {
@@ -112,8 +116,59 @@ main {
             width: 100%;
         }
     }
+}
 
-    .volume {
+main {
+    display: flex;
 
+    .playlists-p {
+        flex-grow: 0.7;
+        padding: 30px;
+
+        h1 {
+            margin-bottom: 20px;
+        }
+        
+        .playlists {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .playlist {
+            background-color: black;
+            padding: 20px;
+        }
     }
+
+    .queue {
+        flex-grow: 0.3;
+        background-color: black;
+    }
+}
+
+.queue {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 180px); /* Keeps it scrollable */
+}
+
+.queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    background: #111;
+}
+
+.queue-item.active {
+    background: #333;
+    border-left: 4px solid #1db954; /* Spotify green highlight */
+}
+
+.queue-item:hover {
+    background: #222;
 }
