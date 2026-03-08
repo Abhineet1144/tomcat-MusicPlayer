@@ -2,10 +2,10 @@ const CURR_TIME = document.getElementById("curr-timestamp");
 const MAX_TIME = document.getElementById("max-timestamp");
 const TIME_SEEK = document.getElementById("time-seek");
 const SKIP_AMOUNT = 5;
+const VOL_ADD_AMOUNT = 0.05;
 
-let vol = 50;
 let playing = false;
-let song = new Audio('./Songs/Lonely Lies & GOLDKID$ - Interlinked.flac');
+let song = null;
 
 document.querySelector("body").addEventListener("keydown", function(event){
     // event.preventDefault();
@@ -23,18 +23,28 @@ document.querySelector("body").addEventListener("keydown", function(event){
     } else if (key === "arrowleft") {
         skip(-SKIP_AMOUNT);
     } else if (key === "arrowup") {
-        song.volume += 0.1;
+        addVol(VOL_ADD_AMOUNT);
     } else if (key === "arrowdown") {
-        song.volume -= 0.1;
+        addVol(-VOL_ADD_AMOUNT);
     }
 });
 
-function playSong() {
-    song = new Audio('./Songs/Lonely Lies & GOLDKID$ - Interlinked.flac');
+function swapPlayStatusAndUpdate() {
+    playing = !playing;
+    updatePlayStatus();
+}
+
+function playSong(songName) {
+    if (song != null) {
+        song.pause();
+        song.remove();
+    }
+    song = new Audio(songName);
     song.addEventListener('loadedmetadata', function() {
         MAX_TIME.innerText = formatTime(song.duration);
         TIME_SEEK.max = song.duration; 
         TIME_SEEK.value = 0;
+        setVolume();
 
         playing = true;
         updatePlayStatus();
@@ -84,7 +94,30 @@ setInterval(() => {
     } 
 }, 1000)
 
-function setVolume() {
-    song.volume = document.getElementById("volume").value;
-    document.getElementById("vol-perc").innerText = Math.ceil(song.volume * 100) + "%";
+function addVol(amount) {
+    song.volume += amount;
+    document.getElementById("volume").value = (document.getElementById("volume").value * 1) + (amount * 1);
+    setVolPercent();
 }
+
+function setVolPercent() {
+    document.getElementById("vol-perc").innerText = Math.ceil(song.volume * 100) + "%";
+    updateToLocalStorage();
+}
+
+function setVolume() {
+    document.getElementById("vol-perc").innerText = Math.ceil(document.getElementById("volume").value * 100) + "%";
+    if (song != null) {
+        song.volume = document.getElementById("volume").value;
+    }
+    updateToLocalStorage();
+}
+
+function updateToLocalStorage() {
+    localStorage.setItem("vol", document.getElementById("volume").value);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("volume").value = localStorage.getItem("vol");
+    setVolPercent();
+})

@@ -9,7 +9,11 @@
     <body>
         <header>
             <h1>OurMusic</h1>
-            <input type="text" id="search">
+            <div class="search">
+                <input type="text" id="search" oninput="search(this.value)">
+                <div class="search-result" id="search-result">
+                </div>
+            </div>
             <div></div>
         </header>
         <main>
@@ -18,14 +22,14 @@
         <section class="player">
             <div class="song-desc">
                 <img height="60px" width="60px" src="Img/music.png" alt="thumbnail" id="song-thumbnail">
-                <p id="song-name">ABCd</p>
+                <p id="song-name">ABCD</p>
             </div>
             <div class="controls">
-                <button>⏪︎</button>
+                <button onclick="skip(-SKIP_AMOUNT)">⏪︎</button>
                 <button>⏮︎</button>
-                <button id="play-pause">►</button>
+                <button id="play-pause" onclick="swapPlayStatusAndUpdate()">►</button>
                 <button>⏭</button>
-                <button>⏩︎</button>
+                <button onclick="skip(SKIP_AMOUNT)">⏩︎</button>
                 <div class="time-seek">
                     <span id="curr-timestamp">0:00</span>
                     <input type="range" id="time-seek" oninput="seek()" value="0">
@@ -39,4 +43,5 @@
         </section>
     </body>
     <script src="scripts/Player.js"></script>
+    <script src="scripts/Search.js"></script>
 </html>
