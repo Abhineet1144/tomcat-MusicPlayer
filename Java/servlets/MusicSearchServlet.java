@@ -13,52 +13,46 @@ import org.json.JSONObject;
 
 public class MusicSearchServlet extends HttpServlet {
     private File songsFolder;
-    private File imagesFolder;
 
     @Override
     public void init() throws ServletException {
         songsFolder = new File(getServletContext().getRealPath("/"), "Songs");
-        imagesFolder = new File(getServletContext().getRealPath("/"), "Img");
     }
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        response.setContentType("application/json;charset=UTF-8");
         PrintWriter out = response.getWriter();
-        String name = request.getParameter("name").toLowerCase();
-        JSONArray musics = new JSONArray();
-        int entriesAdded = 0;
 
-        for (File file : songsFolder.listFiles()) {
-            String songName = file.getName().replace("." + getExtention(file), "");
-            if (songName.toLowerCase().contains(name)) {
-                entriesAdded++;
-                JSONObject songData = new JSONObject();
-                songData.put("name", songName);
-                if (new File(imagesFolder, songName + ".png").exists()) {
-                    songData.put("thumbnail", "./Img/" + songName + ".png");
-                } else {
-                    songData.put("thumbnail", "./Img/music.png");
-                }
-                musics.put(songData);
-            }
+        String nameParam = request.getParameter("name");
+        String query = (nameParam == null ? "" : nameParam.trim().toLowerCase());
 
-            if (entriesAdded > 20) {
-                break;
+        JSONArray results = new JSONArray();
+        File[] files = songsFolder.listFiles();
+        if (files == null) { out.println(results); return; }
+
+        int count = 0;
+        for (File file : files) {
+            if (file.isDirectory()) continue;
+            String ext      = getExtension(file);
+            String songName = file.getName().replace("." + ext, "").trim();
+            if (songName.isEmpty()) continue;
+
+            if (query.isEmpty() || songName.toLowerCase().contains(query)) {
+                JSONObject obj = new JSONObject();
+                obj.put("name", songName);
+                results.put(obj);
+                if (++count >= 30) break;
             }
         }
 
-        out.println(musics);
+        out.println(results);
     }
 
-    private static String getExtention(File file) {
-        String extension = "";
-        String fileName = file.getName();
-        int i = fileName.lastIndexOf('.');
-        int p = fileName.lastIndexOf(File.separatorChar);
-
-        if (i > p) {
-            extension = fileName.substring(i+1);
-        }
-        return extension;
+    private static String getExtension(File file) {
+        String name = file.getName();
+        int i = name.lastIndexOf('.');
+        return (i > 0) ? name.substring(i + 1) : "";
     }
 }

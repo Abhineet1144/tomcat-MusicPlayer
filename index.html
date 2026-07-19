@@ -1,61 +1,353 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="styles/style.css">
-        <title>OurMusic</title>
-    </head>
-    <body>
-        <header>
-            <h1>OurMusic</h1>
-            <div class="search">
-                <input type="text" id="search" oninput="search(this.value)">
-                <div class="search-result" id="search-result">
-                </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>OurMusic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+
+<!-- ── Auth Modal ─────────────────────────────────────────────── -->
+<div id="auth-modal" class="overlay">
+  <div class="modal">
+    <div style="text-align:center;margin-bottom:18px;">
+      <div style="font-size:36px;margin-bottom:6px;">🎵</div>
+      <h2 style="font-size:22px;font-weight:700;">OurMusic</h2>
+      <p style="color:var(--text3);font-size:13px;margin-top:4px;">Your personal music space</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="tab-btn on" id="login-tab-btn" onclick="showAuthTab('login')">Login</button>
+      <button class="tab-btn" id="reg-tab-btn" onclick="showAuthTab('register')">Register</button>
+    </div>
+
+    <!-- Login -->
+    <div id="login-form">
+      <div class="form-grp">
+        <input class="form-inp" id="login-user" type="text" placeholder="Username" autocomplete="username">
+      </div>
+      <div class="form-grp">
+        <input class="form-inp" id="login-pass" type="password" placeholder="Password" autocomplete="current-password">
+      </div>
+      <p class="form-err" id="login-err"></p>
+      <button class="btn-primary" onclick="doLogin()">Login</button>
+      <p class="auth-footer">
+        <button class="btn-link" onclick="continueAsGuest()">Continue as Guest</button>
+      </p>
+    </div>
+
+    <!-- Register -->
+    <div id="register-form" style="display:none">
+      <div class="form-grp">
+        <input class="form-inp" id="reg-user" type="text" placeholder="Username (min 3 chars)" autocomplete="username">
+      </div>
+      <div class="form-grp">
+        <input class="form-inp" id="reg-pass" type="password" placeholder="Password (min 4 chars)" autocomplete="new-password">
+      </div>
+      <p class="form-err" id="reg-err"></p>
+      <button class="btn-primary" onclick="doRegister()">Create Account</button>
+      <p class="auth-footer">
+        <button class="btn-link" onclick="continueAsGuest()">Continue as Guest</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ─────────────────────────────────────────── -->
+<div id="settings-modal" class="overlay hidden">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <h2>Audio Settings</h2>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <!-- General -->
+    <div class="settings-section">
+      <h3>General</h3>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Audio Quality</div>
+          <div class="toggle-sub">Changes take effect on next song play</div>
+        </div>
+        <select class="quality-select" id="quality-select" onchange="savePref('quality', this.value)">
+          <option value="high">High — FLAC lossless (~20-40 MB/song)</option>
+          <option value="medium">Medium — Opus 128k (~3-5 MB/song)</option>
+          <option value="low">Low — Opus 64k (~1.5-2.5 MB/song)</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Load album art</div>
+          <div class="toggle-sub">Fetches ~512 KB per song — disable to save data</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="pref-thumbs" checked onchange="savePref('thumbs', this.checked)">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Show in notification shade</div>
+          <div class="toggle-sub">Media Session — song name &amp; art in OS media controls</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="pref-mediasession" checked onchange="savePref('mediasession', this.checked)">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Equalizer -->
+    <div class="settings-section">
+      <h3>Equalizer</h3>
+      <div class="eq-presets">
+        <button class="preset-btn on" data-preset="flat"       onclick="applyPreset('flat')">Flat</button>
+        <button class="preset-btn"    data-preset="bassboost"  onclick="applyPreset('bassboost')">Bass Boost</button>
+        <button class="preset-btn"    data-preset="treble"     onclick="applyPreset('treble')">Treble</button>
+        <button class="preset-btn"    data-preset="pop"        onclick="applyPreset('pop')">Pop</button>
+        <button class="preset-btn"    data-preset="rock"       onclick="applyPreset('rock')">Rock</button>
+        <button class="preset-btn"    data-preset="electronic" onclick="applyPreset('electronic')">Electronic</button>
+        <button class="preset-btn"    data-preset="classical"  onclick="applyPreset('classical')">Classical</button>
+        <button class="preset-btn"    data-preset="vocal"      onclick="applyPreset('vocal')">Vocal</button>
+      </div>
+      <div class="eq-bands">
+        <div class="eq-band">
+          <span class="eq-band-val" id="eq-60-val">0dB</span>
+          <input type="range" class="eq-slider" id="eq-60"  min="-12" max="12" value="0" step="0.5" oninput="updateEQ()">
+          <span class="eq-band-label">60Hz</span>
+        </div>
+        <div class="eq-band">
+          <span class="eq-band-val" id="eq-250-val">0dB</span>
+          <input type="range" class="eq-slider" id="eq-250" min="-12" max="12" value="0" step="0.5" oninput="updateEQ()">
+          <span class="eq-band-label">250Hz</span>
+        </div>
+        <div class="eq-band">
+          <span class="eq-band-val" id="eq-1k-val">0dB</span>
+          <input type="range" class="eq-slider" id="eq-1k"  min="-12" max="12" value="0" step="0.5" oninput="updateEQ()">
+          <span class="eq-band-label">1kHz</span>
+        </div>
+        <div class="eq-band">
+          <span class="eq-band-val" id="eq-4k-val">0dB</span>
+          <input type="range" class="eq-slider" id="eq-4k"  min="-12" max="12" value="0" step="0.5" oninput="updateEQ()">
+          <span class="eq-band-label">4kHz</span>
+        </div>
+        <div class="eq-band">
+          <span class="eq-band-val" id="eq-16k-val">0dB</span>
+          <input type="range" class="eq-slider" id="eq-16k" min="-12" max="12" value="0" step="0.5" oninput="updateEQ()">
+          <span class="eq-band-label">16kHz</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playback -->
+    <div class="settings-section">
+      <h3>Playback</h3>
+      <div class="setting-row">
+        <label>Playback Speed</label>
+        <input type="range" id="speed-slider" min="0.5" max="2" step="0.05" value="1" oninput="setSpeed()">
+        <span class="setting-val" id="speed-val">1.00x</span>
+      </div>
+      <div class="setting-row">
+        <label>Crossfade (seconds)</label>
+        <input type="range" id="crossfade-slider" min="0" max="12" step="0.5" value="0" oninput="setCrossfade()">
+        <span class="setting-val" id="crossfade-val">0.0s</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add-to-Playlist Modal ──────────────────────────────────── -->
+<div id="add-pl-modal" class="overlay hidden">
+  <div class="modal modal-sm">
+    <div class="modal-hdr">
+      <h3>Add to Playlist</h3>
+      <button class="modal-close" onclick="closeAddPl()">✕</button>
+    </div>
+    <div id="add-pl-list"></div>
+  </div>
+</div>
+
+<!-- Sidebar mobile overlay -->
+<div id="sb-overlay" onclick="closeSidebar()"></div>
+
+<!-- ── Main Layout ───────────────────────────────────────────── -->
+<div id="layout">
+  <div id="app-grid">
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon">🎵</span>
+        OurMusic
+      </div>
+
+      <div class="sidebar-scroll">
+        <div class="sidebar-sec-head">
+          <span>Playlists</span>
+          <button onclick="createPlaylist()" title="New Playlist">+</button>
+        </div>
+        <div id="playlist-list"></div>
+      </div>
+
+      <div class="sidebar-user" id="sidebar-user-area">
+        <!-- Filled by Auth.js -->
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div id="main-content">
+      <header id="top-header">
+        <button id="mobile-menu-btn" onclick="openSidebar()">☰</button>
+
+        <div class="search-container">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search songs…"
+              oninput="handleSearch(this.value)"
+              onfocus="onSearchFocus()"
+              autocomplete="off">
+            <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+          </div>
+          <div id="search-results"></div>
+        </div>
+
+        <div class="header-actions">
+          <button class="hdr-btn" onclick="openSettings()" title="Audio Settings">⚙</button>
+        </div>
+      </header>
+
+      <main id="content-area">
+        <!-- Queue View -->
+        <div id="queue-view">
+          <div class="content-hdr">
+            <h2>Up Next</h2>
+            <button class="act-btn" onclick="shuffleQueue()">🔀 Shuffle</button>
+            <button class="act-btn" onclick="clearQueue()">✕ Clear</button>
+          </div>
+          <div id="queue-list">
+            <div class="empty-state">
+              <div class="empty-ico">🎶</div>
+              <p class="empty-title">Your queue is empty</p>
+              <p class="empty-sub">Search for a song and hit play to get started.</p>
             </div>
-            <div></div>
-        </header>
-        <main>
-            <div class="playlists-p">
-                <h1>
-                    Playlists
-                    <button onclick="createPlaylist()">+</button>
-                    <button onclick="shuffleQueue()">🔀</button>
-                </h1>
-                <div class="playlists">
-                    <div class="playlist">
-                        <span>Playlist 1</span>
-                    </div>
-                </div>
-            </div>
-            <div class="queue">
-            </div>
-        </main>
-        <section class="player">
-            <div class="song-desc">
-                <img height="60px" width="60px" src="Img/music.png" alt="thumbnail" id="song-thumbnail">
-                <p id="song-name">ABCD</p>
-            </div>
-            <div class="controls">
-                <button onclick="skip(-SKIP_AMOUNT)">⏪︎</button>
-                <button onclick="prevSong()">⏮︎</button>
-                <button id="play-pause" onclick="swapPlayStatusAndUpdate()">►</button>
-                <button onclick="nextSong()">⏭</button>
-                <button onclick="skip(SKIP_AMOUNT)">⏩︎</button>
-                <div class="time-seek">
-                    <span id="curr-timestamp">0:00</span>
-                    <input type="range" id="time-seek" oninput="seek()" value="0">
-                    <span id="max-timestamp">0:00</span>
-                </div>
-            </div>
-            <div class="volume">
-                <span id="vol-perc">100%</span>
-                <input type="range" id="volume" oninput="setVolume()" value="1" max="1" step="0.01">
-            </div>
-        </section>
-    </body>
-    <script src="scripts/Player.js"></script>
-    <script src="scripts/Search.js"></script>
-    <script src="scripts/PlayList.js"></script>
+          </div>
+        </div>
+
+        <!-- Playlist Detail View -->
+        <div id="playlist-view" style="display:none">
+          <div class="content-hdr">
+            <button class="back-btn" onclick="showQueueView()">← Back</button>
+            <h2 id="pl-view-title"></h2>
+            <button class="act-btn primary" onclick="playCurrentPlaylist()">▶ Play All</button>
+            <button class="act-btn" onclick="shuffleCurrentPlaylist()">🔀 Shuffle</button>
+          </div>
+          <div id="pl-songs-list"></div>
+        </div>
+      </main>
+    </div>
+
+  </div><!-- #app-grid -->
+
+  <!-- ── Player ─────────────────────────────────────────────── -->
+  <div id="player">
+    <!-- Song Info -->
+    <div class="player-song">
+      <div class="thumb-wrap">
+        <img id="player-thumb" src="Img/music.png" alt="Album Art">
+      </div>
+      <div class="player-song-info">
+        <p id="player-song-name">Not Playing</p>
+        <p id="player-song-artist">—</p>
+      </div>
+      <button class="heart-btn" id="heart-btn" onclick="toggleFavorite()" title="Favourite">♡</button>
+    </div>
+
+    <!-- Controls + Seek -->
+    <div class="player-controls">
+      <div class="ctrl-row">
+        <button id="shuffle-btn" class="ctrl-btn" onclick="toggleShuffle()" title="Shuffle">🔀</button>
+        <button class="ctrl-btn" onclick="prevSong()" title="Previous">⏮</button>
+        <button class="ctrl-btn skip" onclick="skip(-10)" title="−10s">⏪</button>
+        <button id="play-pause-btn" class="play-btn" onclick="swapPlayStatusAndUpdate()">▶</button>
+        <button class="ctrl-btn skip" onclick="skip(10)" title="+10s">⏩</button>
+        <button class="ctrl-btn" onclick="nextSong()" title="Next">⏭</button>
+        <button id="loop-btn" class="ctrl-btn" onclick="cycleLoopMode()" title="No Loop">🔁</button>
+      </div>
+      <div class="seek-row">
+        <span id="curr-time">0:00</span>
+        <div class="seek-wrap">
+          <div class="seek-fill" id="seek-fill"></div>
+          <input type="range" id="seek-bar" value="0" min="0" step="0.1"
+            oninput="onSeekInput()" onchange="onSeekChange()">
+        </div>
+        <span id="total-time">0:00</span>
+      </div>
+    </div>
+
+    <!-- Volume + EQ -->
+    <div class="player-right">
+      <div class="vol-container">
+        <button id="mute-btn" onclick="toggleMute()" title="Mute">🔊</button>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.8"
+          oninput="setVolume()">
+        <span id="vol-pct">80%</span>
+      </div>
+      <button class="eq-btn" id="eq-btn" onclick="openSettings()" title="Equalizer">EQ</button>
+    </div>
+  </div><!-- #player -->
+
+</div><!-- #layout -->
+
+<!-- ── Expanded Player (mobile full-screen, slides up) ────────── -->
+<div id="player-exp" class="player-exp">
+  <div class="player-exp-hdr">
+    <button class="player-exp-close" onclick="closePlayerExp()">⌄</button>
+    <span>Now Playing</span>
+    <button class="heart-btn" id="exp-heart" onclick="toggleFavorite()">♡</button>
+  </div>
+  <div class="player-exp-art-wrap">
+    <img id="exp-thumb" src="Img/music.png" alt="Album Art" class="player-exp-art">
+  </div>
+  <div class="player-exp-info">
+    <p id="exp-name" class="player-exp-name">Not Playing</p>
+    <p id="exp-artist" class="player-exp-artist">—</p>
+  </div>
+  <div class="player-exp-seek">
+    <div class="seek-wrap">
+      <div class="seek-fill" id="exp-seek-fill"></div>
+      <input type="range" id="exp-seek-bar" value="0" min="0" step="0.1"
+        oninput="onExpSeekInput()" onchange="onExpSeekChange()">
+    </div>
+    <div class="player-exp-times">
+      <span id="exp-curr">0:00</span>
+      <span id="exp-total">0:00</span>
+    </div>
+  </div>
+  <div class="player-exp-ctrl">
+    <button id="exp-shuffle" class="ctrl-btn" onclick="toggleShuffle()">🔀</button>
+    <button class="ctrl-btn" onclick="prevSong()">⏮</button>
+    <button id="exp-pp" class="play-btn exp-play" onclick="swapPlayStatusAndUpdate()">▶</button>
+    <button class="ctrl-btn" onclick="nextSong()">⏭</button>
+    <button id="exp-loop" class="ctrl-btn" onclick="cycleLoopMode()">🔁</button>
+  </div>
+  <div class="player-exp-vol">
+    <button id="exp-mute" onclick="toggleMute()">🔊</button>
+    <input type="range" id="exp-vol-slider" min="0" max="1" step="0.01" value="0.8"
+      oninput="syncVolFromExp(this.value)">
+    <span id="exp-vol-pct">80%</span>
+  </div>
+</div>
+
+<!-- Toast notifications -->
+<div id="toast-box"></div>
+
+<!-- ── Scripts ────────────────────────────────────────────────── -->
+<script src="scripts/jsmediatags.min.js"></script>
+<script src="scripts/Auth.js"></script>
+<script src="scripts/Player.js"></script>
+<script src="scripts/PlayList.js"></script>
+<script src="scripts/Search.js"></script>
+</body>
 </html>

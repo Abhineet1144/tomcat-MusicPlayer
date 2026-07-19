@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee" version="3.1">
 
-    <!-- Start of ervlets/MusicSearchServlet -->
+    <!-- Music Search -->
     <servlet>
         <servlet-name>musicsearchservlet</servlet-name>
         <servlet-class>servlets.MusicSearchServlet</servlet-class>
@@ -10,5 +10,36 @@
         <servlet-name>musicsearchservlet</servlet-name>
         <url-pattern>/search</url-pattern>
     </servlet-mapping>
-    <!-- End of ervlets/MusicSearchServlet -->
+
+    <!-- Auth -->
+    <servlet>
+        <servlet-name>authservlet</servlet-name>
+        <servlet-class>servlets.AuthServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>authservlet</servlet-name>
+        <url-pattern>/auth</url-pattern>
+    </servlet-mapping>
+
+    <!-- Playlists -->
+    <servlet>
+        <servlet-name>playlistservlet</servlet-name>
+        <servlet-class>servlets.PlaylistServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>playlistservlet</servlet-name>
+        <url-pattern>/playlists</url-pattern>
+    </servlet-mapping>
+
+    <!-- Stream (quality transcoding) -->
+    <servlet>
+        <servlet-name>streamservlet</servlet-name>
+        <servlet-class>servlets.StreamServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>streamservlet</servlet-name>
+        <url-pattern>/stream</url-pattern>
+    </servlet-mapping>
+
 </web-app>

@@ -1,77 +1,123 @@
-function search(name) {
-    document.getElementById("search-result").style.display = "flex";
-    if (!name) {
-        document.getElementById("search-result").innerHTML = "";
+/* Search.js – Real-time search with thumbnail extraction */
+
+let searchDebounce = null;
+let lastQuery      = '';
+
+// ── Event handlers ────────────────────────────────────────────────
+function handleSearch(val) {
+    document.getElementById('search-clear').classList.toggle('visible', val.length > 0);
+    clearTimeout(searchDebounce);
+    if (!val.trim()) { closeSearch(); return; }
+    searchDebounce = setTimeout(() => doSearch(val.trim()), 250);
+}
+
+function onSearchFocus() {
+    const val = document.getElementById('search-input').value.trim();
+    if (val) doSearch(val);
+}
+
+function clearSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').classList.remove('visible');
+    lastQuery = '';
+    closeSearch();
+}
+
+function closeSearch() {
+    document.getElementById('search-results').classList.remove('open');
+    document.getElementById('search-results').innerHTML = '';
+}
+
+// Close on outside click
+document.addEventListener('click', e => {
+    if (!e.target.closest('.search-container')) closeSearch();
+});
+
+// ── Fetch ──────────────────────────────────────────────────────────
+function doSearch(query) {
+    lastQuery = query;   // always update so stale-check works
+
+    const box = document.getElementById('search-results');
+    box.innerHTML = '<p class="sr-empty">Searching…</p>';
+    box.classList.add('open');
+
+    fetch('./search?name=' + encodeURIComponent(query))
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(songs => {
+            if (query !== lastQuery) return; // superseded
+            renderResults(songs, box);
+        })
+        .catch(err => {
+            console.error('[Search] fetch/parse error:', err);
+            if (query === lastQuery) {
+                box.innerHTML = '<p class="sr-empty">Search failed – check the console (F12).</p>';
+            }
+        });
+}
+
+// ── Render ─────────────────────────────────────────────────────────
+function renderResults(songs, box) {
+    box.innerHTML = '';
+
+    if (!Array.isArray(songs) || songs.length === 0) {
+        box.innerHTML = '<p class="sr-empty">No songs found.</p>';
         return;
     }
 
-    fetch("./search?name=" + name)
-    .then(res => res.json())
-    .then(songs => {
-        let songsDiv = document.getElementById("search-result");
-        songsDiv.innerHTML = "";
-        
-        songs.forEach((song) => {
-            let songDiv = document.createElement("div");
-            songDiv.classList.add("song-item");
-            
-            songDiv.innerHTML = `
-                <div class="song-info" onclick="play('${song.name}', '${song.thumbnail}')">
-                    <img height="50px" width="50px" src="${song.thumbnail}" alt="thumbnail">
-                    <p>${song.name}</p>
-                    <div class="playlist-selector">
-                        <button class="add-btn">Add to +</button>
-                        <div class="playlist-dropdown" style="display:none;">
-                            ${playLists.map((pl, index) => 
-                                `<div onclick="addToSpecificPlaylist(${index}, '${song.name}', '${song.thumbnail}')">${pl.name}</div>`
-                            ).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
+    songs.forEach(song => {
+        const name = (song.name || '').trim();
+        if (!name) return;
 
-            const addBtn = songDiv.querySelector(".add-btn");
-            const dropdown = songDiv.querySelector(".playlist-dropdown");
-            addBtn.onclick = (e) => {
+        const div = document.createElement('div');
+        div.className = 'sr-item';
+
+        // ── Build HTML without any interpolated onclick (avoids & / ' issues) ──
+        div.innerHTML = `
+            <img class="sr-thumb" src="Img/music.png" alt="">
+            <div class="sr-info">
+                <p class="sr-name">${escHtml(name)}</p>
+                <p class="sr-meta">FLAC</p>
+            </div>
+            <div class="sr-actions">
+                <button class="sr-act-btn" data-act="play"  title="Play now">▶</button>
+                <button class="sr-act-btn" data-act="next"  title="Play next">⏭</button>
+                <button class="sr-act-btn" data-act="queue" title="Add to queue">＋</button>
+                <button class="sr-act-btn" data-act="addpl" title="Add to playlist">♫</button>
+            </div>
+        `;
+
+        // ── Wire up events via addEventListener (no HTML attribute injection) ──
+        div.querySelector('.sr-info').addEventListener('click',  () => { play(name); closeSearch(); });
+        div.querySelector('.sr-thumb').addEventListener('click', () => { play(name); closeSearch(); });
+
+        div.querySelectorAll('.sr-act-btn').forEach(btn => {
+            btn.addEventListener('click', e => {
                 e.stopPropagation();
-                document.querySelectorAll('.playlist-dropdown').forEach(d => d.style.display = 'none');
-                dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
-            };
-
-            songsDiv.appendChild(songDiv);
+                const act = btn.dataset.act;
+                if      (act === 'play')  { play(name);       closeSearch(); }
+                else if (act === 'next')  { playNext(name);   showToast(`"${name}" plays next`); }
+                else if (act === 'queue') { addToQueue(name); }
+                else if (act === 'addpl') { showAddPl(name);  }
+            });
         });
+
+        // Lazy-load real album art from FLAC metadata
+        const img = div.querySelector('.sr-thumb');
+        if (thumbCache.has(name)) {
+            img.src = thumbCache.get(name);
+        } else {
+            extractThumb(name, url => { if (img) img.src = url; });
+        }
+
+        box.appendChild(div);
     });
 }
 
-function play(songName, imgPath) {
-    const songIndex = queue.findIndex(s => s.name === songName);
-    if (songIndex === -1) {
-        queue.push({ name: songName, thumbnail: imgPath });
-        currentIndex = queue.length - 1;
-    } else {
-        currentIndex = songIndex;
-    }
-
-    let path = "./Songs/" + songName + ".flac";
-    document.getElementById("song-thumbnail").src = imgPath;
-    document.getElementById("song-name").innerText = songName;
-    
-    updateLocalStorage();
-    updateInUI();
-    playSong(path);
+// ── Helpers ───────────────────────────────────────────────────────
+// Escape for HTML attributes (single-quoted)
+function esc(s) {
+    return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
-
-function loadPlaylistToQueue(plIndex) {
-    const selectedPlaylist = playLists[plIndex];
-    if (selectedPlaylist.songs.length > 0) {
-        queue = [...selectedPlaylist.songs];
-        currentIndex = 0;
-        play(queue[0].name, queue[0].thumbnail);
-    } else {
-        alert("This playlist is empty!");
-    }
-}
-
-window.onclick = () => {
-    document.querySelectorAll('.playlist-dropdown').forEach(d => d.style.display = 'none');
-};
