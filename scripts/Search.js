@@ -67,6 +67,8 @@ function renderResults(songs, box) {
         return;
     }
 
+    const tCache = globalThis.thumbCache || new Map();
+
     songs.forEach(song => {
         const name = (song.name || '').trim();
         if (!name) return;
@@ -78,7 +80,7 @@ function renderResults(songs, box) {
         div.innerHTML = `
             <img class="sr-thumb" src="Img/music.png" alt="">
             <div class="sr-info">
-                <p class="sr-name">${escHtml(name)}</p>
+                <p class="sr-name">${esc(name)}</p>
                 <p class="sr-meta">FLAC</p>
             </div>
             <div class="sr-actions">
@@ -106,8 +108,8 @@ function renderResults(songs, box) {
 
         // Lazy-load real album art from FLAC metadata
         const img = div.querySelector('.sr-thumb');
-        if (thumbCache.has(name)) {
-            img.src = thumbCache.get(name);
+        if (tCache.has(name)) {
+            img.src = tCache.get(name);
         } else {
             extractThumb(name, url => { if (img) img.src = url; });
         }

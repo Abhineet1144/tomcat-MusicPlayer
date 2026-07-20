@@ -83,6 +83,7 @@ function play(songName) {
 }
 
 function loadAndStart(songName) {
+    const tCache = globalThis.thumbCache || new Map();
     document.getElementById('player-song-name').textContent   = songName;
     document.getElementById('player-song-artist').textContent = qualityLabel();
 
@@ -91,7 +92,7 @@ function loadAndStart(songName) {
     if (expName)   expName.textContent   = songName;
     if (expArtist) expArtist.textContent = qualityLabel();
 
-    const savedThumb = thumbCache.get(songName) || 'Img/music.png';
+    const savedThumb = tCache.get(songName) || 'Img/music.png';
     document.getElementById('player-thumb').src = savedThumb;
     const expThumb = document.getElementById('exp-thumb');
     if (expThumb) expThumb.src = savedThumb;
@@ -382,6 +383,7 @@ function renderSidebar() {
 }
 
 function renderQueue() {
+    const tCache = globalThis.thumbCache || new Map();
     const container = document.getElementById('queue-list');
     if (!queue.length) {
         container.innerHTML = `
@@ -397,7 +399,7 @@ function renderQueue() {
         const isNow = i === queueIdx;
         const div   = document.createElement('div');
         div.className = 'q-item' + (isNow ? ' now-playing' : '');
-        const thumb = thumbCache.get(s.name) || 'Img/music.png';
+        const thumb = tCache.get(s.name) || 'Img/music.png';
         div.innerHTML = `
             <span class="q-num">${i + 1}</span>
             <div class="q-now-ico"><div class="soundwave"><span></span><span></span><span></span></div></div>
@@ -411,7 +413,7 @@ function renderQueue() {
         div.onclick = () => { queueIdx = i; loadAndStart(s.name); renderQueue(); persist(); };
 
         // Lazy-load thumbnail
-        if (!thumbCache.has(s.name)) {
+        if (!tCache.has(s.name)) {
             extractThumb(s.name, url => {
                 const img = div.querySelector('.q-thumb');
                 if (img) img.src = url;
@@ -427,6 +429,7 @@ function renderQueue() {
 }
 
 function renderPlaylistView(idx) {
+    const tCache = globalThis.thumbCache || new Map();
     const pl = playlists[idx];
     if (!pl) return;
     document.getElementById('pl-view-title').textContent = pl.name;
@@ -437,7 +440,7 @@ function renderPlaylistView(idx) {
     }
     list.innerHTML = '';
     pl.songs.forEach((s, i) => {
-        const thumb = thumbCache.get(s.name) || 'Img/music.png';
+        const thumb = tCache.get(s.name) || 'Img/music.png';
         const div   = document.createElement('div');
         div.className = 'pl-song';
         div.innerHTML = `
@@ -451,7 +454,7 @@ function renderPlaylistView(idx) {
         `;
         div.onclick = () => play(s.name);
 
-        if (!thumbCache.has(s.name)) {
+        if (!tCache.has(s.name)) {
             extractThumb(s.name, url => {
                 const img = div.querySelector('.pl-song-thumb');
                 if (img) img.src = url;

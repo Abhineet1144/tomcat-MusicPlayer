@@ -27,7 +27,7 @@
 
 /* ── Reset ──────────────────────────────────────────────────────── */
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-html, body { height:100%; overflow:hidden; }
+html, body { height:100%; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
@@ -587,39 +587,49 @@ a { color: inherit; text-decoration: none; }
 .toggle-switch input:checked + .toggle-track::after { transform:translateX(18px); }
 
 /* Settings */
-.settings-section { margin-bottom:24px; }
+.settings-section { margin-bottom: 24px; }
 .settings-section h3 {
-  font-size:12px; font-weight:600; text-transform:uppercase;
-  letter-spacing:0.8px; color:var(--text3); margin-bottom:12px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text3); margin-bottom: 16px;
+  border-bottom: 1px solid var(--border); padding-bottom: 6px;
 }
-.eq-presets { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+
+.eq-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
 .preset-btn {
-  padding:5px 13px; border-radius:20px;
-  border:1px solid var(--border); background:var(--bg3);
-  color:var(--text2); font-size:12px; cursor:pointer;
-  transition:all var(--ease);
+  padding: 6px 14px; border-radius: 18px;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--text2); font-size: 12px; cursor: pointer;
+  transition: all var(--ease);
 }
-.preset-btn:hover { border-color:var(--accent2); color:var(--text); }
-.preset-btn.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.preset-btn:hover { border-color: var(--accent2); color: var(--text); }
+.preset-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .eq-bands {
-  display:flex; justify-content:space-around;
-  background:var(--bg3); border-radius:var(--r);
-  padding:14px 10px; gap:6px;
+  display: flex; justify-content: space-between;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px 10px; gap: 4px;
 }
-.eq-band { display:flex; flex-direction:column; align-items:center; gap:5px; flex:1; }
-.eq-band-label { font-size:10px; color:var(--text3); }
-.eq-band-val { font-size:10px; color:var(--accent2); min-height:14px; }
+.eq-band { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 1; }
+.eq-band-label { font-size: 10px; color: var(--text3); font-weight: 600; }
+.eq-band-val { font-size: 10px; color: var(--accent2); font-family: monospace; }
+
+/* Better vertical sliders */
 .eq-slider {
-  writing-mode:vertical-lr; direction:rtl;
-  width:4px; height:90px; cursor:pointer;
-  accent-color:var(--accent2);
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  width: 20px; height: 120px; cursor: pointer;
+  accent-color: var(--accent2);
 }
 
-.setting-row { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-.setting-row label { font-size:13px; min-width:130px; color:var(--text2); }
-.setting-row input[type=range] { flex:1; accent-color:var(--accent2); cursor:pointer; }
-.setting-val { font-size:12px; color:var(--accent2); min-width:42px; text-align:right; }
+.setting-row {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+  background: var(--bg3); padding: 10px 14px; border-radius: var(--r);
+  border: 1px solid transparent; transition: border-color var(--ease);
+}
+.setting-row:focus-within { border-color: var(--accent-dim); }
+.setting-row label { font-size: 13px; flex: 1; color: var(--text); }
+.setting-row input[type=range] { width: 140px; accent-color: var(--accent2); cursor: pointer; }
+.setting-val { font-size: 12px; color: var(--accent2); min-width: 45px; text-align: right; font-family: monospace; }
 
 /* Add to playlist modal */
 .pl-opt {
@@ -780,12 +790,13 @@ a { color: inherit; text-decoration: none; }
   #content-area { padding:14px; }
   .search-container { flex:1; }
 
-  .eq-bands { gap:4px; padding:10px 4px; }
-  .eq-slider { height:80px; }
+  .eq-bands { padding: 15px 5px; }
+  .eq-slider { height: 100px; width: 16px; }
 
-  /* Modals full-width on mobile */
-  .modal { width:96%; padding:22px 18px; }
-  .modal-sm { max-width:320px; }
+  .sr-act-btn { width: 34px; height: 34px; font-size: 14px; }
+  .sr-actions { opacity: 1; }
+
+  .setting-row { flex-direction: column; align-items: stretch; gap: 8px; }
 }
 
 @media (max-width: 480px) {
