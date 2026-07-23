@@ -32,6 +32,26 @@
         <url-pattern>/playlists</url-pattern>
     </servlet-mapping>
 
+    <!-- Device Management (multi-device remote control) -->
+    <servlet>
+        <servlet-name>deviceservlet</servlet-name>
+        <servlet-class>servlets.DeviceServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>deviceservlet</servlet-name>
+        <url-pattern>/devices</url-pattern>
+    </servlet-mapping>
+
+    <!-- Player State (queue, progress, volume, EQ …) -->
+    <servlet>
+        <servlet-name>stateservlet</servlet-name>
+        <servlet-class>servlets.StateServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>stateservlet</servlet-name>
+        <url-pattern>/state</url-pattern>
+    </servlet-mapping>
+
     <!-- Stream (quality transcoding) -->
     <servlet>
         <servlet-name>streamservlet</servlet-name>

@@ -487,6 +487,8 @@ a { color: inherit; text-decoration: none; }
   transition:all var(--ease);
 }
 .eq-btn:hover, .eq-btn.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+/* Isolated device indicator – subtle red tint so user knows sync is off */
+.eq-btn.isolated { background:var(--bg4); color:var(--danger); border-color:var(--danger); }
 
 /* ── Modals ──────────────────────────────────────────────────────── */
 .overlay {
@@ -644,7 +646,181 @@ a { color: inherit; text-decoration: none; }
   justify-content:center; font-size:14px; flex-shrink:0;
 }
 
-/* ── Toast ───────────────────────────────────────────────────────── */
+/* ── Device Panel ────────────────────────────────────────────────── */
+.device-panel {
+  position: fixed;
+  bottom: calc(var(--player-h) + 10px);
+  right: 16px;
+  width: 380px;
+  max-height: 520px;
+  overflow-y: auto;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  z-index: 250;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+  animation: panelIn 0.18s ease;
+}
+.device-panel.hidden { display: none; }
+
+@keyframes panelIn {
+  from { opacity:0; transform: translateY(10px); }
+  to   { opacity:1; transform: translateY(0);     }
+}
+
+.device-panel-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.device-panel-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+.device-panel-close {
+  background: none; border: none; color: var(--text3);
+  font-size: 14px; cursor: pointer; padding: 3px 6px;
+  border-radius: 4px; transition: color var(--ease);
+}
+.device-panel-close:hover { color: var(--danger); }
+
+/* Empty state */
+.dev-empty {
+  padding: 28px 20px; text-align: center; color: var(--text2);
+}
+.dev-empty-ico { font-size: 36px; margin-bottom: 10px; }
+.dev-empty p   { font-size: 13px; line-height: 1.6; }
+.dev-empty-sub { font-size: 12px; color: var(--text3); margin-top: 6px; }
+
+/* Connection mode badge */
+.dev-mode-badge {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text3); padding: 5px 16px 3px;
+}
+
+/* Device item */
+.dev-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--ease);
+}
+.dev-item:last-child { border-bottom: none; }
+.dev-item.dev-me     { background: var(--accent-dim); }
+
+.dev-hdr {
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.dev-icon  { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+.dev-meta  { flex: 1; min-width: 0; }
+
+.dev-nameline {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+}
+.dev-name {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 170px;
+}
+.dev-badge {
+  font-size: 10px; background: var(--accent); color: #fff;
+  padding: 1px 7px; border-radius: 20px; font-weight: 600;
+  white-space: nowrap;
+}
+.dev-badge-me     { background: transparent; border: 1px solid var(--accent2); color: var(--accent2); }
+.dev-badge-active { background: var(--success); }
+.dev-badge-ctrl   { background: var(--bg5); color: var(--text2); }
+.dev-item.dev-active { border-left: 2px solid var(--success); }
+.dev-dot { font-size: 9px; color: var(--text3); }
+.dev-dot.pulsing {
+  color: var(--success);
+  animation: dot-pulse 1.4s ease infinite;
+}
+@keyframes dot-pulse {
+  0%,100% { opacity:1; }
+  50%      { opacity:0.3; }
+}
+
+.dev-status { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.dev-song   { color: var(--text2); }
+.dev-idle   { color: var(--text3); }
+
+/* Controls */
+.dev-controls { margin-top: 11px; display: flex; flex-direction: column; gap: 8px; }
+
+.dev-transfer-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.dev-ctrl-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.dev-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--bg4); border: 1px solid var(--border);
+  color: var(--text2); font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--ease);
+}
+.dev-btn:hover      { background: var(--bg5); color: var(--text); }
+.dev-btn.dev-pp     { background: var(--text); color: var(--bg); border-color: var(--text); }
+.dev-btn.dev-pp:hover { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
+.dev-transfer-btns  { display: flex; gap: 5px; margin-left: auto; }
+.dev-transfer-btn {
+  padding: 5px 10px; border-radius: var(--r-sm);
+  background: var(--bg4); border: 1px solid var(--border);
+  color: var(--text2); font-size: 11px; cursor: pointer;
+  transition: all var(--ease); white-space: nowrap;
+}
+.dev-transfer-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Seek */
+.dev-seek-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.dev-time { font-size: 10px; color: var(--text3); width: 34px; flex-shrink: 0; }
+.dev-time:last-child { text-align: right; }
+
+.dev-seekwrap {
+  flex: 1; height: 4px; position: relative;
+  background: var(--bg4); border-radius: 4px; cursor: pointer;
+}
+.dev-seekfill {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  background: var(--accent2); border-radius: 4px;
+  pointer-events: none; width: 0%;
+}
+.dev-seekbar {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  -webkit-appearance: none; appearance: none;
+  background: transparent; outline: none; cursor: pointer; z-index: 2; margin: 0;
+}
+.dev-seekbar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #fff; cursor: pointer; opacity: 0;
+  transition: opacity var(--ease);
+}
+.dev-seekwrap:hover .dev-seekbar::-webkit-slider-thumb { opacity: 1; }
+
+/* Volume */
+.dev-vol-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.dev-vol-ico { font-size: 13px; flex-shrink: 0; }
+.dev-volbar {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+  border-radius: 4px; cursor: pointer; accent-color: var(--accent2); outline: none;
+}
+.dev-vol-pct { font-size: 10px; color: var(--text3); width: 30px; text-align: right; }
+
+/* Mobile */
+@media (max-width: 480px) {
+  .device-panel { width: calc(100vw - 16px); right: 8px; left: 8px; }
+  .dev-transfer-btns { margin-left: 0; margin-top: 4px; flex-wrap: wrap; }
+}
+
+
 #toast-box {
   position:fixed; bottom:calc(var(--player-h) + 14px); right:16px;
   display:flex; flex-direction:column; gap:8px; z-index:3000;
@@ -745,64 +921,147 @@ a { color: inherit; text-decoration: none; }
 }
 .player-exp-vol span { font-size:11px; color:var(--text3); width:32px; text-align:right; }
 
+/* ── Expanded player: drag-handle pill ──────────────────────────── */
+.player-exp::before {
+  content: ''; display: block; flex-shrink: 0;
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.12); border-radius: 2px;
+  margin: 10px auto 0; align-self: center;
+}
+
+/* Quick-action buttons at the bottom of the expanded player */
+.player-exp-actions {
+  display: flex; gap: 10px; flex-shrink: 0; margin-bottom: 8px;
+}
+.exp-qbtn {
+  flex: 1; padding: 12px 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--text2);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all var(--ease);
+}
+.exp-qbtn:hover, .exp-qbtn:active { background: var(--bg4); color: var(--text); }
+
 /* ── Mobile ─────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  :root { --player-h:64px; --header-h:54px; }
+  :root { --player-h: 64px; --header-h: 54px; }
 
-  /* Settings as bottom sheet */
-  #settings-modal .modal-lg {
-    max-width:100%; width:100%;
-    border-radius:var(--r-lg) var(--r-lg) 0 0;
-    max-height:88vh; margin:0;
+  /* Modals → bottom sheets */
+  #settings-modal .modal-lg, #add-pl-modal .modal-sm {
+    max-width: 100%; width: 100%;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    max-height: 88vh; margin: 0;
   }
-  #settings-modal { align-items:flex-end; }
+  #settings-modal, #add-pl-modal { align-items: flex-end; }
 
-  #app-grid { grid-template-columns:1fr; }
+  #app-grid { grid-template-columns: 1fr; }
 
   #sidebar {
-    position:fixed; top:0; left:0; bottom:0;
-    width:min(300px, 84vw); z-index:500;
-    transform:translateX(-100%);
-    transition:transform 0.3s ease;
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: min(300px, 84vw); z-index: 500;
+    transform: translateX(-100%); transition: transform 0.3s ease;
   }
-  #sidebar.open { transform:translateX(0); }
+  #sidebar.open { transform: translateX(0); }
 
-  #mobile-menu-btn { display:flex; }
+  #mobile-menu-btn { display: flex; }
 
-  /* Mini player — tap anywhere (not a btn/input) to expand */
+  /* ── Mini player ──────────────────────────────────────────── */
+  /* Layout: [song info] [prev | ▶ | next] [📡] */
   #player {
-    grid-template-columns: auto 1fr auto;
-    padding:0 14px; gap:10px; cursor:pointer;
+    grid-template-columns: 1fr auto auto;
+    padding: 0 16px; gap: 8px; cursor: pointer;
   }
-  .player-song { max-width:140px; overflow:hidden; }
-  #player-song-artist { display:none; }
-  .ctrl-btn.skip { display:none; }
-  .seek-row { display:none; }
-  .vol-container { display:none; }
-  #vol-pct { display:none; }
-  .eq-btn  { display:none; }
+  /* Keep player-right so 📡 stays visible; hide only the volume */
+  .vol-container { display: none; }
+  #vol-pct       { display: none; }
+  .player-song   { max-width: none; min-width: 0; overflow: hidden; }
 
-  /* Bigger tap targets for mini-player buttons */
-  .ctrl-btn { width:38px; height:38px; }
-  .play-btn  { width:42px; height:42px; font-size:17px; }
+  /* Show only prev/play/next in the mini bar — shuffle/loop are in expanded view */
+  #shuffle-btn, #loop-btn { display: none; }
+  .ctrl-btn.skip { display: none; }
+  .seek-row      { display: none; }
+  #player-song-artist { display: none; }
+  /* Hide the EQ button but keep the 📡 devices button visible in the bar */
+  #eq-btn    { display: none; }
+  #devices-btn { display: flex; align-items: center; justify-content: center; }
 
-  .content-hdr { flex-wrap:wrap; }
-  #content-area { padding:14px; }
-  .search-container { flex:1; }
+  /* Bigger tap targets for mini bar */
+  .ctrl-btn { width: 44px; height: 44px; font-size: 18px; }
+  .play-btn  { width: 50px; height: 50px; font-size: 21px; }
+  .ctrl-row  { gap: 0; }
 
-  .eq-bands { padding: 15px 5px; }
+  /* Mini player thumbnail */
+  .thumb-wrap, #player-thumb { width: 46px; height: 46px; }
+
+  /* ── Expanded player ──────────────────────────────────────── */
+  /* Seek thumb always visible on touch */
+  #exp-seek-bar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; opacity: 1; margin-top: -8px;
+  }
+  .player-exp-seek .seek-wrap { height: 5px; }
+
+  /* Album art: cap height so the buttons below aren't pushed off-screen */
+  .player-exp-art { width: min(66vw, 280px); height: min(66vw, 280px); }
+
+  /* ── Queue & Playlist ─────────────────────────────────────── */
+  .q-item  { padding: 12px 14px; }
+  .pl-song { padding: 12px 14px; }
+  .pl-item { padding: 10px 12px; }
+
+  /* Remove / delete buttons always visible on touch */
+  .q-remove, .pl-song-rem {
+    opacity: 1;
+    width: 34px; height: 34px; font-size: 16px;
+  }
+  .pl-del { opacity: 1; font-size: 18px; }
+
+  /* Search result actions always visible */
+  .sr-actions { opacity: 1; }
+  .sr-act-btn { width: 36px; height: 36px; font-size: 15px; }
+
+  /* ── Layout ───────────────────────────────────────────────── */
+  .content-hdr { flex-wrap: wrap; gap: 8px; }
+  #content-area { padding: 12px; }
+  .search-container { flex: 1; }
+
+  /* ── EQ sliders ───────────────────────────────────────────── */
+  .eq-bands  { padding: 15px 5px; }
   .eq-slider { height: 100px; width: 16px; }
 
-  .sr-act-btn { width: 34px; height: 34px; font-size: 14px; }
-  .sr-actions { opacity: 1; }
-
+  /* Settings rows stack vertically */
   .setting-row { flex-direction: column; align-items: stretch; gap: 8px; }
+
+  /* ── Device panel → bottom sheet, above expanded player ─────── */
+  .device-panel {
+    position: fixed;
+    bottom: 0 !important; left: 0 !important; right: 0 !important;
+    width: 100% !important; max-height: 72vh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: none;
+    z-index: 700;   /* above expanded player (600) and sidebar (500) */
+    animation: panelInUp 0.22s ease;
+  }
+  .device-panel::before {
+    content: ''; display: block;
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.12); border-radius: 2px;
+    margin: 10px auto 4px;
+  }
+}
+
+@keyframes panelInUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
 @media (max-width: 480px) {
-  .player-song { max-width:100px; }
-  #player { grid-template-columns: auto 1fr auto; }
-  .player-right { display:none; }
-  .search-box { padding:8px 12px; }
+  #player { padding: 0 12px; }
+  /* player-right stays visible — it holds the 📡 devices button */
+  .search-box { padding: 8px 12px; }
 }
+
+
 

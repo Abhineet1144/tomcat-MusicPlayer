@@ -155,6 +155,21 @@
         <span class="setting-val" id="crossfade-val">0.0s</span>
       </div>
     </div>
+
+    <!-- Devices -->
+    <div class="settings-section">
+      <h3>Devices</h3>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Isolate this device</div>
+          <div class="toggle-sub">Stops all cluster sync — no heartbeat, no remote control, invisible to other devices</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="pref-isolated" onchange="if(typeof setIsolated!=='undefined') setIsolated(this.checked)">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -294,6 +309,7 @@
           oninput="setVolume()">
         <span id="vol-pct">80%</span>
       </div>
+      <button class="eq-btn" id="devices-btn" onclick="toggleDevicePanel()" title="Connected Devices">📡</button>
       <button class="eq-btn" id="eq-btn" onclick="openSettings()" title="Equalizer">EQ</button>
     </div>
   </div><!-- #player -->
@@ -338,6 +354,23 @@
       oninput="syncVolFromExp(this.value)">
     <span id="exp-vol-pct">80%</span>
   </div>
+  <!-- Quick access for settings & devices — shown only on mobile -->
+  <div class="player-exp-actions">
+    <button class="exp-qbtn" onclick="toggleDevicePanel()">📡 Devices</button>
+    <button class="exp-qbtn" onclick="openSettings()">⚙ Settings</button>
+  </div>
+</div>
+
+<!-- ── Device Panel ──────────────────────────────────────────── -->
+<div id="device-panel" class="device-panel hidden">
+  <div class="device-panel-hdr">
+    <div class="device-panel-title">
+      <span>📡</span>
+      <span>Connected Devices</span>
+    </div>
+    <button class="device-panel-close" onclick="closeDevicePanel()">✕</button>
+  </div>
+  <div id="device-list"></div>
 </div>
 
 <!-- Toast notifications -->
@@ -349,5 +382,6 @@
 <script src="scripts/Player.js"></script>
 <script src="scripts/PlayList.js"></script>
 <script src="scripts/Search.js"></script>
+<script src="scripts/Devices.js"></script>
 </body>
 </html>

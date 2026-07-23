@@ -28,6 +28,8 @@ public class AuthServlet extends HttpServlet {
         } catch (IOException e) {
             throw new ServletException(e);
         }
+        // Share dataDir with the WebSocket endpoint so it can authenticate connections
+        DeviceWebSocket.dataDir = dataDir;
     }
 
     /** GET /auth  →  check current session */

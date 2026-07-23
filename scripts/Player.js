@@ -73,7 +73,7 @@ function connectSrc(audioEl) {
 }
 
 // ── Core Play ─────────────────────────────────────────────────────
-function playSong(path) {
+function playSong(path, startTime = 0) {
     if (audio) {
         audio.pause();
         audio.src = '';
@@ -92,6 +92,10 @@ function playSong(path) {
         const expBar   = document.getElementById('exp-seek-bar');
         if (expTotal) expTotal.textContent = fmt(dur);
         if (expBar)   expBar.max = dur;
+        // Resume from saved progress if requested
+        if (startTime > 0 && startTime < dur) {
+            audio.currentTime = startTime;
+        }
         playing = true;
         updatePlayBtn();
         refreshMediaSession();
@@ -132,9 +136,40 @@ function playSong(path) {
 
 // ── Play Control ──────────────────────────────────────────────────
 function swapPlayStatusAndUpdate() {
-    if (!audio) return;
+    // Controller routing: send 'toggle' to the active device; update UI optimistically.
+    if (typeof amIActiveDevice !== 'undefined' && !amIActiveDevice()) {
+        if (typeof _receivingRemoteCmd === 'undefined' || !_receivingRemoteCmd) {
+            const activeId = typeof getActiveDeviceId !== 'undefined' ? getActiveDeviceId() : null;
+            if (activeId && typeof sendRemoteCommand !== 'undefined') {
+                sendRemoteCommand(activeId, 'toggle', {});
+                // Optimistic button flip so the controller gets instant feedback
+                if (typeof _mirrorState !== 'undefined' && _mirrorState) {
+                    _mirrorState.playing = !_mirrorState.playing;
+                    _mirrorState.syncedAt = Date.now();
+                    const icon = _mirrorState.playing ? '⏸' : '▶';
+                    const pp = document.getElementById('play-pause-btn');
+                    if (pp) pp.innerHTML = icon;
+                    const epp = document.getElementById('exp-pp');
+                    if (epp) epp.innerHTML = icon;
+                }
+            }
+        }
+        return; // Never play locally on a controller device
+    }
+
+    // No audio loaded yet (e.g., after page restore where previewSongInPlayer was called
+    // but playSong was not). Load the current queue song — respects _pendingRestoreProgress.
+    if (!audio) {
+        if (typeof queue    !== 'undefined' && typeof queueIdx !== 'undefined' &&
+            queueIdx >= 0 && queue && queue[queueIdx]) {
+            loadAndStart(queue[queueIdx].name);
+        }
+        return;
+    }
+
     playing = !playing;
     updatePlayBtn();
+    // No cluster broadcast — active device just plays; peers learn via ping state updates
 }
 
 function updatePlayBtn() {
@@ -158,6 +193,22 @@ function onSeekInput() {
 }
 
 function onSeekChange() {
+    // Controller → route seek to active device
+    if (typeof amIActiveDevice !== 'undefined' && !amIActiveDevice() &&
+        (typeof _receivingRemoteCmd === 'undefined' || !_receivingRemoteCmd)) {
+        const activeId = typeof getActiveDeviceId !== 'undefined' ? getActiveDeviceId() : null;
+        if (activeId && typeof sendRemoteCommand !== 'undefined') {
+            const pos = parseFloat(document.getElementById('seek-bar').value);
+            sendRemoteCommand(activeId, 'seek', { position: pos });
+            // Update mirror so the interval doesn't immediately overwrite it
+            if (typeof _mirrorState !== 'undefined' && _mirrorState) {
+                _mirrorState.progress = pos;
+                _mirrorState.syncedAt = Date.now();
+            }
+        }
+        isSeeking = false;   // Must reset so mirror interval can resume updating the bar
+        return;
+    }
     if (!audio) return;
     audio.currentTime = parseFloat(document.getElementById('seek-bar').value);
     isSeeking = false;
@@ -168,11 +219,26 @@ function onSeekChange() {
 function onExpSeekInput() {
     isSeeking = true;
     const val = document.getElementById('exp-seek-bar').value;
-    document.getElementById('seek-bar').value = val; // keep mini bar in sync while dragging
+    document.getElementById('seek-bar').value = val;
     updateSeekUI();
 }
 
 function onExpSeekChange() {
+    // Controller → route seek to active device
+    if (typeof amIActiveDevice !== 'undefined' && !amIActiveDevice() &&
+        (typeof _receivingRemoteCmd === 'undefined' || !_receivingRemoteCmd)) {
+        const activeId = typeof getActiveDeviceId !== 'undefined' ? getActiveDeviceId() : null;
+        if (activeId && typeof sendRemoteCommand !== 'undefined') {
+            const pos = parseFloat(document.getElementById('exp-seek-bar').value);
+            sendRemoteCommand(activeId, 'seek', { position: pos });
+            if (typeof _mirrorState !== 'undefined' && _mirrorState) {
+                _mirrorState.progress = pos;
+                _mirrorState.syncedAt = Date.now();
+            }
+        }
+        isSeeking = false;
+        return;
+    }
     if (!audio) return;
     audio.currentTime = parseFloat(document.getElementById('exp-seek-bar').value);
     isSeeking = false;
@@ -202,6 +268,14 @@ function updateSeekUI() {
 }
 
 function skip(secs) {
+    // Controller → route skip to active device
+    if (typeof amIActiveDevice !== 'undefined' && !amIActiveDevice() &&
+        (typeof _receivingRemoteCmd === 'undefined' || !_receivingRemoteCmd)) {
+        const activeId = typeof getActiveDeviceId !== 'undefined' ? getActiveDeviceId() : null;
+        if (activeId && typeof sendRemoteCommand !== 'undefined')
+            sendRemoteCommand(activeId, 'skip', { seconds: secs });
+        return;
+    }
     if (!audio) return;
     audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + secs));
     updateSeekUI();
@@ -222,6 +296,8 @@ function setVolume() {
     const em = document.getElementById('exp-mute');    if (em) em.textContent = icon;
     updateVolSliderStyle();
     localStorage.setItem('volume', v);
+    scheduleStateSync();
+    // Volume is always LOCAL — remote volume is controlled via the device panel slider only
 }
 
 function syncVolFromExp(val) {
@@ -264,6 +340,22 @@ function cycleLoopMode() {
     setLoop(document.getElementById('loop-btn'));
     setLoop(document.getElementById('exp-loop'));
     localStorage.setItem('loopMode', loopMode);
+    scheduleStateSync();
+    // Loop mode is a local preference – not broadcast to cluster
+}
+
+/** Set loop mode directly (used when restoring server state – no toast). */
+function applyLoopMode(mode) {
+    loopMode = mode;
+    const updateBtn = (btn) => {
+        if (!btn) return;
+        if (loopMode === 0) { btn.textContent = '🔁'; btn.classList.remove('on'); btn.title = 'No Loop'; }
+        else if (loopMode === 1) { btn.textContent = '🔁'; btn.classList.add('on'); btn.title = 'Loop Queue'; }
+        else  { btn.textContent = '🔂'; btn.classList.add('on'); btn.title = 'Loop Song'; }
+    };
+    updateBtn(document.getElementById('loop-btn'));
+    updateBtn(document.getElementById('exp-loop'));
+    localStorage.setItem('loopMode', loopMode);
 }
 
 function toggleShuffle() {
@@ -271,6 +363,17 @@ function toggleShuffle() {
     document.getElementById('shuffle-btn').classList.toggle('on', shuffleOn);
     const es = document.getElementById('exp-shuffle'); if (es) es.classList.toggle('on', shuffleOn);
     showToast(shuffleOn ? '🔀 Shuffle on' : 'Shuffle off');
+    localStorage.setItem('shuffle', shuffleOn);
+    scheduleStateSync();
+    // Shuffle is a local preference – not broadcast to cluster
+}
+
+/** Set shuffle state directly (used when restoring server state – no toast). */
+function applyShuffleState(on) {
+    shuffleOn = on;
+    document.getElementById('shuffle-btn')?.classList.toggle('on', shuffleOn);
+    const es = document.getElementById('exp-shuffle');
+    if (es) es.classList.toggle('on', shuffleOn);
     localStorage.setItem('shuffle', shuffleOn);
 }
 
@@ -280,12 +383,14 @@ function setSpeed() {
     if (audio) audio.playbackRate = speedVal;
     document.getElementById('speed-val').textContent = speedVal.toFixed(2) + 'x';
     localStorage.setItem('speed', speedVal);
+    scheduleStateSync();
 }
 
 function setCrossfade() {
     crossfadeSec = parseFloat(document.getElementById('crossfade-slider').value);
     document.getElementById('crossfade-val').textContent = crossfadeSec.toFixed(1) + 's';
     localStorage.setItem('crossfade', crossfadeSec);
+    scheduleStateSync();
 }
 
 // ── EQ ────────────────────────────────────────────────────────────
@@ -298,6 +403,7 @@ function updateEQ() {
     localStorage.setItem('eq', JSON.stringify(EQ_BANDS.map(b => document.getElementById(b.id).value)));
     // Remove active from all presets
     document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('on'));
+    scheduleStateSync();
 }
 
 function applyPreset(name) {
@@ -327,6 +433,49 @@ function loadSavedEQ() {
             }
         } catch (_) {}
     }
+}
+
+// ── Server State Sync ─────────────────────────────────────────────
+let _stateSyncTimer = null;
+
+/**
+ * Debounced trigger – safe to call on every small change.
+ * Skips immediately if no user is logged in.
+ */
+function scheduleStateSync() {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    clearTimeout(_stateSyncTimer);
+    _stateSyncTimer = setTimeout(pushStateToServer, 900);
+}
+
+/** Push the complete current player state to the server (fire-and-forget). */
+function pushStateToServer() {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    fetch('./state', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(collectState())
+    }).catch(() => {});
+}
+
+/** Snapshot every piece of player state into a plain object. */
+function collectState() {
+    const q  = typeof queue    !== 'undefined' ? queue    : [];
+    const qi = typeof queueIdx !== 'undefined' ? queueIdx : -1;
+    return {
+        queue:     q,
+        queueIdx:  qi,
+        progress:  audio ? audio.currentTime  : 0,
+        duration:  audio ? (audio.duration || 0) : 0,
+        volume:    parseFloat(document.getElementById('volume-slider')?.value || '0.8'),
+        muted:     muted,
+        loopMode:  loopMode,
+        shuffleOn: shuffleOn,
+        speed:     speedVal,
+        crossfade: crossfadeSec,
+        eq:        EQ_BANDS.map(b => parseFloat(document.getElementById(b.id)?.value || '0')),
+        eqPreset:  localStorage.getItem('eqPreset') || 'flat'
+    };
 }
 
 // ── User Preferences ─────────────────────────────────────────────
@@ -529,7 +678,7 @@ function closeSettings() {
     document.getElementById('eq-btn').classList.remove('on');
 }
 
-// ── Sidebar toggle (mobile) ───────────────────────────────────────
+// ── Sidebar toggle (mobile) ──────────────���────────────────────────
 function openSidebar() {
     document.getElementById('sidebar').classList.add('open');
     document.getElementById('sb-overlay').classList.add('on');
@@ -606,6 +755,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // User prefs (must be last so checkboxes exist)
     loadPrefs();
 
+    // ── Periodic progress save (every 10 s while playing) ────────
+    setInterval(() => {
+        if (typeof playing !== 'undefined' && playing && audio &&
+            typeof currentUser !== 'undefined' && currentUser) {
+            pushStateToServer();
+        }
+    }, 10000);
+
     // ── Mobile: tap mini-player → expand; swipe down → close ─────
     document.getElementById('player').addEventListener('click', e => {
         if (window.innerWidth > 768) return;
@@ -620,4 +777,3 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.changedTouches[0].clientY - _ty0 > 72) closePlayerExp();
     }, { passive: true });
 });
-

@@ -6,6 +6,13 @@ let queueIdx  = -1;
 let playlists = [];   // [{name, songs:[{name}]}]
 let viewingPl = -1;   // playlist index currently shown in detail view
 
+/**
+ * When restoring from a saved server state, this holds the progress
+ * (seconds) to resume from on the FIRST play of the restored song.
+ * Consumed (reset to 0) inside loadAndStart().
+ */
+let _pendingRestoreProgress = 0;
+
 // ── Boot ──────────────────────────────────────────────────────────
 // loadPlaylists() is called by Auth.js after login / guest
 
@@ -24,10 +31,8 @@ function loadPlaylists() {
                     playlists = [{ name: 'My Favorites', songs: [] }];
                 }
                 renderSidebar();
-                // Restore queue
-                const sq = localStorage.getItem('queue');
-                if (sq) try { queue = JSON.parse(sq); queueIdx = parseInt(localStorage.getItem('queueIdx') ?? '-1'); } catch (_) {}
-                renderQueue();
+                // Load full player state from server (queue, volume, EQ …)
+                loadStateFromServer();
             })
             .catch(() => {
                 loadFromLocalStorage();
@@ -51,9 +56,11 @@ function persist() {
     if (!currentUser) {
         localStorage.setItem('playlists', JSON.stringify(playlists));
     } else {
-        // Sync to server (debounced)
+        // Sync playlists to server (debounced)
         clearTimeout(persist._t);
         persist._t = setTimeout(syncToServer, 1200);
+        // Also sync full player state
+        scheduleStateSync();
     }
 }
 
@@ -64,6 +71,183 @@ function syncToServer() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(playlists)
     }).catch(() => {});
+}
+
+// ── Server State Load / Apply ─────────────────────────────────────
+
+/**
+ * Fetch player state from the server and apply it.
+ * Falls back to localStorage queue if the request fails.
+ */
+function loadStateFromServer() {
+    fetch('./state')
+        .then(r => r.json())
+        .then(state => {
+            if (state.error) {
+                restoreQueueFromLocalStorage();
+                return;
+            }
+            applyServerState(state);
+        })
+        .catch(() => restoreQueueFromLocalStorage());
+}
+
+function restoreQueueFromLocalStorage() {
+    const sq = localStorage.getItem('queue');
+    if (sq) {
+        try {
+            queue    = JSON.parse(sq);
+            queueIdx = parseInt(localStorage.getItem('queueIdx') ?? '-1');
+        } catch (_) {}
+    }
+    renderQueue();
+}
+
+/**
+ * Apply a full state snapshot returned by GET /state.
+ * Wrapped in _suppressBroadcast so restoring your own saved state
+ * doesn't disrupt other devices in the cluster.
+ */
+function applyServerState(state) {
+    window._suppressBroadcast = true;
+    try {
+        _applyServerStateInner(state);
+    } finally {
+        window._suppressBroadcast = false;
+    }
+}
+
+function _applyServerStateInner(state) {
+    // ── Playback settings ────────────────────────────────────────
+    if (state.volume != null) {
+        document.getElementById('volume-slider').value = state.volume;
+        // Call setVolume but skip the sync hook (no circular push)
+        _applyVolumeNoSync(state.volume);
+    }
+
+    if (state.muted) {
+        // toggleMute flips the flag; since muted starts false, one call sets it
+        toggleMute();
+    }
+
+    if (state.loopMode != null) {
+        applyLoopMode(state.loopMode);
+    }
+
+    if (state.shuffleOn != null) {
+        applyShuffleState(state.shuffleOn);
+    }
+
+    if (state.speed != null) {
+        speedVal = state.speed;
+        document.getElementById('speed-slider').value = state.speed;
+        if (audio) audio.playbackRate = state.speed;
+        document.getElementById('speed-val').textContent = state.speed.toFixed(2) + 'x';
+        localStorage.setItem('speed', state.speed);
+    }
+
+    if (state.crossfade != null) {
+        crossfadeSec = state.crossfade;
+        document.getElementById('crossfade-slider').value = state.crossfade;
+        document.getElementById('crossfade-val').textContent = state.crossfade.toFixed(1) + 's';
+        localStorage.setItem('crossfade', state.crossfade);
+    }
+
+    if (Array.isArray(state.eq) && state.eq.length === EQ_BANDS.length) {
+        EQ_BANDS.forEach((b, i) => {
+            document.getElementById(b.id).value = state.eq[i];
+        });
+        updateEQ(); // applies to audio nodes + DOM labels
+        if (state.eqPreset) {
+            document.querySelectorAll('.preset-btn').forEach(b => {
+                b.classList.toggle('on', b.dataset.preset === state.eqPreset);
+            });
+            localStorage.setItem('eqPreset', state.eqPreset);
+        }
+    }
+
+    // ── Queue ────────────────────────────────────────────────────
+    if (Array.isArray(state.queue) && state.queue.length > 0) {
+        queue    = state.queue;
+        queueIdx = typeof state.queueIdx === 'number' ? state.queueIdx : -1;
+
+        renderQueue();
+
+        // Show current song in player UI (no autoplay)
+        if (queueIdx >= 0 && queue[queueIdx]) {
+            _pendingRestoreProgress = state.progress || 0;
+            previewSongInPlayer(
+                queue[queueIdx].name,
+                state.progress || 0,
+                state.duration || 0
+            );
+        }
+    } else {
+        // No saved queue – fall back to localStorage
+        restoreQueueFromLocalStorage();
+    }
+}
+
+/**
+ * Set volume without triggering a server state sync.
+ * Used internally during state restore to avoid an immediate push-back.
+ */
+function _applyVolumeNoSync(v) {
+    if (audio && !muted) audio.volume = v;
+    const pctStr = Math.round(v * 100) + '%';
+    const icon   = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+    document.getElementById('vol-pct').textContent    = pctStr;
+    document.getElementById('mute-btn').textContent   = icon;
+    const ev = document.getElementById('exp-vol-slider');
+    if (ev) { ev.value = v; ev.style.background = `linear-gradient(to right,var(--accent2) ${v*100}%,var(--bg4) ${v*100}%)`; }
+    const ep = document.getElementById('exp-vol-pct'); if (ep) ep.textContent = pctStr;
+    const em = document.getElementById('exp-mute');    if (em) em.textContent = icon;
+    updateVolSliderStyle();
+    localStorage.setItem('volume', v);
+}
+
+/**
+ * Populate the player UI with a song's info WITHOUT loading/playing audio.
+ * Shows the seek bar at the saved progress position.
+ */
+function previewSongInPlayer(songName, progress, duration) {
+    document.getElementById('player-song-name').textContent   = songName;
+    document.getElementById('player-song-artist').textContent = qualityLabel();
+
+    const expName   = document.getElementById('exp-name');
+    const expArtist = document.getElementById('exp-artist');
+    if (expName)   expName.textContent   = songName;
+    if (expArtist) expArtist.textContent = qualityLabel();
+
+    // Album art
+    const savedThumb = (globalThis.thumbCache || new Map()).get(songName) || 'Img/music.png';
+    document.getElementById('player-thumb').src = savedThumb;
+    const et = document.getElementById('exp-thumb'); if (et) et.src = savedThumb;
+    extractThumb(songName, url => {
+        document.getElementById('player-thumb').src = url;
+        const et2 = document.getElementById('exp-thumb'); if (et2) et2.src = url;
+    });
+
+    updateHeartBtn(songName);
+
+    // Seek bar hint (visual only – no audio loaded yet)
+    if (duration > 0) {
+        const pct = (Math.min(progress, duration) / duration * 100).toFixed(2) + '%';
+        document.getElementById('total-time').textContent  = fmt(duration);
+        document.getElementById('curr-time').textContent   = fmt(progress);
+        document.getElementById('seek-bar').max            = duration;
+        document.getElementById('seek-bar').value          = progress;
+        document.getElementById('seek-fill').style.width   = pct;
+
+        const expTotal = document.getElementById('exp-total');
+        const expBar   = document.getElementById('exp-seek-bar');
+        const expCurr  = document.getElementById('exp-curr');
+        const expFill  = document.getElementById('exp-seek-fill');
+        if (expTotal) expTotal.textContent    = fmt(duration);
+        if (expBar)   { expBar.max = duration; expBar.value = progress; }
+        if (expCurr)  expCurr.textContent     = fmt(progress);
+        if (expFill)  expFill.style.width      = pct;
+    }
 }
 
 // ── Main play entry point ─────────────────────────────────────────
@@ -83,6 +267,26 @@ function play(songName) {
 }
 
 function loadAndStart(songName) {
+    // ── Controller routing ──────────────────────────────────────────
+    // If this is a local user action (not a received command, not state restore)
+    // and this device is NOT the active player, send the song to the active device.
+    const _isCmd    = typeof _receivingRemoteCmd !== 'undefined' && _receivingRemoteCmd;
+    const _suppress = !!window._suppressBroadcast;
+    if (!_isCmd && !_suppress &&
+        typeof amIActiveDevice !== 'undefined' && !amIActiveDevice()) {
+        const startTime = _pendingRestoreProgress || 0;
+        _pendingRestoreProgress = 0;
+        const activeId = typeof getActiveDeviceId !== 'undefined' ? getActiveDeviceId() : null;
+        if (activeId && typeof sendRemoteCommand !== 'undefined')
+            sendRemoteCommand(activeId, 'playSong', { songName, progress: startTime });
+        return;   // controller does not play locally
+    }
+
+    // ── Active device: play locally ─────────────────────────────────
+    // Claim the active role if this is a local user action
+    if (!_isCmd && !_suppress && typeof activeDeviceId !== 'undefined')
+        activeDeviceId = typeof myDeviceId !== 'undefined' ? myDeviceId : activeDeviceId;
+
     const tCache = globalThis.thumbCache || new Map();
     document.getElementById('player-song-name').textContent   = songName;
     document.getElementById('player-song-artist').textContent = qualityLabel();
@@ -107,7 +311,13 @@ function loadAndStart(songName) {
     updateHeartBtn(songName);
 
     const path = buildSongUrl(songName);
-    playSong(path);
+
+    // Use and consume any pending restore progress
+    const startTime = _pendingRestoreProgress || 0;
+    _pendingRestoreProgress = 0;
+
+    playSong(path, startTime);
+    // No cluster broadcast – peers learn about the new song via ping state updates
 }
 
 // ── Queue actions ─────────────────────────────────────────────────
@@ -161,6 +371,16 @@ function shuffleQueue() {
 
 function nextSong() {
     if (!queue.length) return;
+
+    // Controller → forward to active device
+    const _isCmd = typeof _receivingRemoteCmd !== 'undefined' && _receivingRemoteCmd;
+    if (!_isCmd && typeof amIActiveDevice !== 'undefined' && !amIActiveDevice()) {
+        const activeId = typeof getActiveDeviceId !== 'undefined' ? getActiveDeviceId() : null;
+        if (activeId && typeof sendRemoteCommand !== 'undefined')
+            sendRemoteCommand(activeId, 'next', {});
+        return;
+    }
+
     let next;
     if (shuffleOn) {
         next = Math.floor(Math.random() * queue.length);
@@ -179,6 +399,16 @@ function nextSong() {
 
 function prevSong() {
     if (!queue.length) return;
+
+    // Controller → forward to active device
+    const _isCmd = typeof _receivingRemoteCmd !== 'undefined' && _receivingRemoteCmd;
+    if (!_isCmd && typeof amIActiveDevice !== 'undefined' && !amIActiveDevice()) {
+        const activeId = typeof getActiveDeviceId !== 'undefined' ? getActiveDeviceId() : null;
+        if (activeId && typeof sendRemoteCommand !== 'undefined')
+            sendRemoteCommand(activeId, 'prev', {});
+        return;
+    }
+
     // If > 3s into song, restart; else go previous
     if (audio && audio.currentTime > 3) {
         audio.currentTime = 0;
@@ -464,4 +694,3 @@ function renderPlaylistView(idx) {
         list.appendChild(div);
     });
 }
-

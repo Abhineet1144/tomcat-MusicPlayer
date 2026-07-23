@@ -120,6 +120,7 @@ function doLogout() {
     fetch('./auth', { method: 'POST', body: fd, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
         .then(() => {
             currentUser = null;
+            if (typeof onDevicesLoggedOut !== 'undefined') onDevicesLoggedOut();
             showToast('Logged out');
             renderUserArea();
             // Reset playlists to guest (localStorage)
@@ -138,7 +139,8 @@ function continueAsGuest() {
 function onLoggedIn() {
     hideAuthModal();
     renderUserArea();
-    loadPlaylists(); // Load server playlists
+    loadPlaylists(); // Load server playlists + state
+    if (typeof onDevicesLoggedIn !== 'undefined') onDevicesLoggedIn();
     showToast(`Welcome, ${currentUser}! 🎵`, 'ok');
 }
 
